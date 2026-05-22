@@ -1,0 +1,44 @@
+name: Release Helm chart
+
+# Publishes the missing-pods chart to a GitHub-Pages-hosted Helm repo
+# every time the chart's version (in missing-pods/Chart.yaml) changes
+# and lands on main. chart-releaser-action creates a GitHub Release
+# with the .tgz attached and updates the index.yaml on the gh-pages
+# branch.
+
+on:
+  push:
+    branches:
+      - main
+  # Allow re-running manually from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity for the release commit
+        run: |
+          git config user.name  "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          # The chart lives at the repo root (missing-pods/), not under charts/.
+          charts_dir: .
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
