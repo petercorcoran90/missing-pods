@@ -20,18 +20,10 @@ data:
     EVIDENCE FOUND - level 3 of 8
     -------------------------------------------------------------
     Whoever lifted the records sealed the next lead inside the
-    evidence locker (a Secret named `evidence-locker`). Its `note`
-    key is base64-encoded - decode it.
+    evidence locker - a Secret named `evidence-locker`. Its
+    `note` key is base64-encoded. You know how Secrets work.
 
-    Try:
-        kubectl get secret evidence-locker -n {{ .Release.Namespace }} \
-          -o jsonpath='{.data.note}' | base64 --decode ; echo
-
-    Passphrase for Precinct HQ:  {{ .Values.answers.level3 }}
-
-    Log it at the desk:
-        kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
-          curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level3 }}'
+    Passphrase: {{ .Values.answers.level3 }}
     -------------------------------------------------------------
   file-C.txt: |
     DEAD END.

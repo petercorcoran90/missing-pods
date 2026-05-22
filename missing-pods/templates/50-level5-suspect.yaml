@@ -43,20 +43,14 @@ spec:
               =============================================================
               Took 'em long enough to scale me back up.
 
-              Listen. The getaway used an internal ClusterIP Service. It's
-              called `getaway-svc` in this same namespace. From the
-              detective-terminal pod, run:
+              Listen. The getaway used an internal ClusterIP Service
+              called `getaway-svc` in this same namespace. ClusterIPs
+              don't answer from outside the cluster - you'll need a
+              pod that's already inside. Lucky for you, there is one.
 
-                  kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
-                    curl -s http://getaway-svc.{{ .Release.Namespace }}.svc.cluster.local
+              Whatever the service hands you, the next lead's in there.
 
-              Whatever the service hands you, the next lead is in there.
-
-              Passphrase for Precinct HQ:  {{ .Values.answers.level5 }}
-
-              Log it at the desk:
-                  kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
-                    curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level5 }}'
+              Passphrase: {{ .Values.answers.level5 }}
               =============================================================
               EOF
               exec sleep infinity

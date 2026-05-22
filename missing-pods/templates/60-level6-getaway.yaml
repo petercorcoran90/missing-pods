@@ -18,20 +18,11 @@ data:
       GETAWAY DISPATCH - intercepted radio chatter
     =============================================================
     The intruder switched cars in the vault sub-basement. The
-    physical evidence (the manifest of stolen records) is on a
-    volume mounted into the pod called `vault-keeper` at the
-    path /evidence/.
+    physical evidence (a manifest of the stolen records) sits
+    on a volume mounted into the pod called `vault-keeper`
+    at the path /evidence/.
 
-    To read it, exec into the pod and cat the file:
-
-        kubectl exec vault-keeper -n {{ .Release.Namespace }} -- \
-          cat /evidence/manifest.txt
-
-    Passphrase for Precinct HQ:  {{ .Values.answers.level6 }}
-
-    Log it at the desk:
-        kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
-          curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level6 }}'
+    Passphrase: {{ .Values.answers.level6 }}
     =============================================================
 ---
 apiVersion: apps/v1

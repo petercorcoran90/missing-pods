@@ -11,18 +11,11 @@ metadata:
     # The actual clue. Player surfaces this with `kubectl describe pod`.
     case.clue: |
       Detective, I saw the whole thing.
-      Passphrase to log this lead at Precinct HQ:  {{ .Values.answers.level1 }}
+      Passphrase: {{ .Values.answers.level1 }}
 
-      Log it at the desk:
-          kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
-            curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level1 }}'
-
-      Next: a security camera was rolling that night. Find the pod
-      named `surveillance-cam`. It has two containers; only one of
-      them was pointing the right way.
-
-      Try:
-          kubectl logs surveillance-cam -n {{ .Release.Namespace }} -c camera
+      Next lead: a security camera was rolling that night. The pod
+      is called `surveillance-cam`. It runs more than one container -
+      only one of them was pointing the right way.
 
       Bring me what the camera saw.
     {{- if .Values.difficulty.hints }}

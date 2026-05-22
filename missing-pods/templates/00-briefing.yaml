@@ -10,16 +10,35 @@ data:
   case-file.txt: |
 {{ .Values.theme.briefing | indent 4 }}
     -------------------------------------------------------------
+    PRECINCT HQ - THE DESK
+    -------------------------------------------------------------
+    Each level's clue carries a passphrase ("Passphrase for
+    Precinct HQ: XXX"). Hand them in to the desk so the case
+    file stays current.
+
+    The desk runs as a ClusterIP Service inside this namespace,
+    so it only answers from inside the cluster. You've got a
+    `detective-terminal` pod purpose-built for talking to
+    in-cluster services - use it. The desk talks HTTP GET.
+
+    Endpoints:
+        /                              case status + progress bar
+        /submit?clue=<passphrase>      log a level's evidence
+        /hint?level=<1..7>             graduated hints (1=mild..3=spoiler)
+        /accuse?name=<suspect>         close the case (the finale)
+
+    Service address inside the cluster:
+        {{ include "case.validatorHost" . }}:{{ .Values.validator.port }}
+
+    Stuck on a level for more than a few minutes? Ask the desk
+    for a hint. That's what it's there for.
+
+    -------------------------------------------------------------
     YOUR FIRST LEAD - LEVEL 1: THE FIRST WITNESS
     -------------------------------------------------------------
-    A witness is in the bullpen. We tagged them with a label so
-    you can pick them out of the crowd.
-
-    Try:
-        kubectl get pods -n {{ .Release.Namespace }} -l role=witness --show-labels
-        kubectl describe pod <that-witness-pod> -n {{ .Release.Namespace }}
-
-    Witnesses talk in annotations. Read carefully.
+    A witness is in the bullpen. We tagged them with `role=witness`
+    so you can pick them out of the crowd. Witnesses only talk
+    on the record - check their paperwork, not their mouth.
     -------------------------------------------------------------
 ---
 apiVersion: v1
