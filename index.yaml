@@ -1,0 +1,25 @@
+apiVersion: v1
+entries:
+  missing-pods:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-05-22T12:53:37.051353877Z"
+    description: 'The Case of the Missing Pods - a noir detective puzzle game played
+      with real kubectl and helm against a real Kubernetes cluster. Designed as a
+      45-50 minute capstone for a Kubernetes & Helm for Developers course. '
+    digest: 9f292f6ee0d44db7cab9b1392a122e9351ef42549613fbcd3c0ab2f51370a3f9
+    home: https://example.com/missing-pods
+    keywords:
+    - education
+    - game
+    - kubernetes
+    - helm
+    - learning
+    maintainers:
+    - name: Precinct HQ
+    name: missing-pods
+    type: application
+    urls:
+    - https://github.com/petercorcoran90/missing-pods/releases/download/missing-pods-0.1.2/missing-pods-0.1.2.tgz
+    version: 0.1.2
+generated: "2026-05-22T12:53:37.051365564Z"
