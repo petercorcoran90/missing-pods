@@ -13,6 +13,10 @@ metadata:
       Detective, I saw the whole thing.
       Passphrase to log this lead at Precinct HQ:  {{ .Values.answers.level1 }}
 
+      Log it at the desk:
+          kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+            curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level1 }}'
+
       Next: a security camera was rolling that night. Find the pod
       named `surveillance-cam`. It has two containers; only one of
       them was pointing the right way.

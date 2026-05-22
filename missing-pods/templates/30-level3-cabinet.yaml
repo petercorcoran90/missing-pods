@@ -28,6 +28,10 @@ data:
           -o jsonpath='{.data.note}' | base64 --decode ; echo
 
     Passphrase for Precinct HQ:  {{ .Values.answers.level3 }}
+
+    Log it at the desk:
+        kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+          curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level3 }}'
     -------------------------------------------------------------
   file-C.txt: |
     DEAD END.

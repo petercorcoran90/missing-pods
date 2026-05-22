@@ -53,6 +53,10 @@ spec:
               Whatever the service hands you, the next lead is in there.
 
               Passphrase for Precinct HQ:  {{ .Values.answers.level5 }}
+
+              Log it at the desk:
+                  kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+                    curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level5 }}'
               =============================================================
               EOF
               exec sleep infinity

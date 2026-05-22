@@ -28,6 +28,10 @@ data:
           cat /evidence/manifest.txt
 
     Passphrase for Precinct HQ:  {{ .Values.answers.level6 }}
+
+    Log it at the desk:
+        kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+          curl -s 'http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/submit?clue={{ .Values.answers.level6 }}'
     =============================================================
 ---
 apiVersion: apps/v1
