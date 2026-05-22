@@ -1,0 +1,128 @@
+# ----------------------------------------------------------------------------
+# The Case of the Missing Pods - values.yaml
+#
+# Reskin the whole game by editing the `theme` and `answers` blocks. Toggle
+# difficulty, hints, decoys, the validator service, and RBAC scaffolding from
+# here without touching any template.
+# ----------------------------------------------------------------------------
+
+# Namespace is created by Helm with --create-namespace, or pre-created
+# yourself. The chart honours .Release.Namespace; you do not set it here.
+
+# ---- Theme / story copy --------------------------------------------------
+# All player-visible strings live here so an instructor can reskin the game
+# (e.g. to a haunted-cluster theme, a space-station theme, ...) without
+# touching templates.
+theme:
+  caseName: "The Case of the Missing Pods"
+  caseTagline: "Three pods went silent overnight. The trail is still warm."
+  detectiveName: "Detective"
+  precinctName: "Precinct HQ"
+  victim: "payments-service"
+  briefing: |
+    +--------------------------------------------------------------+
+    |        THE CASE OF THE MISSING PODS - CASE FILE              |
+    +--------------------------------------------------------------+
+    Detective,
+
+    Three pods on the payments line went dark overnight and a
+    batch of customer records walked out with them. The intruder
+    is still inside the cluster, dressed up as one of our own
+    workloads.
+
+    Eight pieces of evidence. One culprit. Forty-five minutes.
+
+    Follow the trail. Trust the resources, not the names.
+
+    -- Precinct HQ
+  victoryBanner: |
+    +--------------------------------------------------------------+
+    |   CASE CLOSED. The cluster is yours, Detective.              |
+    +--------------------------------------------------------------+
+
+# ---- Per-level passphrases & the culprit ---------------------------------
+# Change these per cohort with --set so teams cannot share solutions.
+# Each passphrase is the string the player submits to the validator's
+# /submit endpoint after solving that level. They are also embedded in the
+# corresponding clue so the discovery chain works even with the validator
+# disabled.
+answers:
+  level1: "BADGE-7749"
+  level2: "CAMERA-NOIR"
+  level3: "FILING-CABINET-B"
+  level4: "OPEN-SESAME"
+  level5: "INFORMANT-TALKS"
+  level6: "GETAWAY-CAR"
+  level7: "VAULT-OPENED"
+  # The finale. The player submits this name to /accuse.
+  culprit: "ledger-worker"
+
+# ---- Difficulty knobs ----------------------------------------------------
+difficulty:
+  # Add plausibly-named decoy pods/configmaps/secrets so a team cannot just
+  # `get all -o yaml` and read the answer. Decoys self-identify as dead
+  # ends so nobody rat-holes for 10 minutes.
+  decoys: true
+  # Embed graduated hints in annotations / the hints ConfigMap, and serve
+  # them via the validator's /hint endpoint.
+  hints: true
+
+# ---- Validator (Precinct HQ) ---------------------------------------------
+# A tiny Python stdlib http.server with /, /submit, /hint, /accuse endpoints
+# and an ASCII progress bar. State is in-memory; reinstall = clean reset.
+validator:
+  enabled: true
+  image: "python:3-alpine"
+  port: 8080
+  # service name (and the in-cluster DNS prefix the player will curl)
+  serviceName: "precinct-hq"
+
+# ---- Optional RBAC scaffolding -------------------------------------------
+# When enabled, ships a ServiceAccount + Role + RoleBinding scoped to this
+# namespace. The chart does not depend on it; it is provided as a hook for
+# instructors who want to hand players a limited kubeconfig.
+rbac:
+  enabled: false
+  serviceAccountName: "detective"
+
+# ---- Images --------------------------------------------------------------
+# Keep these tiny. No pip/apk at runtime.
+images:
+  busybox: "busybox:1.36"
+  alpine: "alpine:3.19"
+  nginx: "nginx:alpine"
+  curl: "curlimages/curl:8.6.0"
+  netshoot: "nicolaka/netshoot:v0.13"
+  python: "python:3-alpine"
+
+# ---- The worker roster (finale) -----------------------------------------
+# These are the workloads the player audits in the finale with
+#   helm get values <release>
+#   helm get manifest <release>
+# Exactly one of them is the intruder, masquerading as a legitimate
+# worker. The give-away is a `team` value that does not match the rest.
+# To reskin: keep the same shape, rename people, but make exactly ONE
+# worker's `team` differ. That one's `name` must equal `answers.culprit`.
+workers:
+  - name: "payments-worker"
+    team: "platform"
+    note: "legit - settles transactions"
+  - name: "auth-worker"
+    team: "platform"
+    note: "legit - issues tokens"
+  - name: "notifications-worker"
+    team: "platform"
+    note: "legit - sends emails"
+  - name: "ledger-worker"
+    team: "contractor"
+    note: "added last week - paperwork pending"
+
+# ---- Resource limits (kept modest for tiny dev clusters) -----------------
+resources:
+  default:
+    requests:
+      cpu: "10m"
+      memory: "16Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"

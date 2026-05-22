@@ -1,0 +1,59 @@
+{{- /*
+The intruder scaled this Deployment to 0 to silence the informant.
+A `kubernetes.io/change-cause` annotation makes `kubectl rollout history`
+hand the player a suspicious one-liner. Scaling it back to 1 brings the
+pod up; its logs then reveal the next clue.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: informant
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: informant
+    case.level: "5"
+  annotations:
+    kubernetes.io/change-cause: "Scaled to 0 by an internal actor at 03:14 - investigate"
+    {{- if .Values.difficulty.hints }}
+    case.hint: "`kubectl rollout history deployment/informant` then `kubectl scale deployment/informant --replicas=1`."
+    {{- end }}
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: informant
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" . | nindent 8 }}
+        app: informant
+        role: informant
+    spec:
+      containers:
+        - name: informant
+          image: {{ .Values.images.busybox | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat <<'EOF'
+              =============================================================
+                INFORMANT - reporting in
+              =============================================================
+              Took 'em long enough to scale me back up.
+
+              Listen. The getaway used an internal ClusterIP Service. It's
+              called `getaway-svc` in this same namespace. From the
+              detective-terminal pod, run:
+
+                  kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+                    curl -s http://getaway-svc.{{ .Release.Namespace }}.svc.cluster.local
+
+              Whatever the service hands you, the next lead is in there.
+
+              Passphrase for Precinct HQ:  {{ .Values.answers.level5 }}
+              =============================================================
+              EOF
+              exec sleep infinity
+          {{- include "case.resources" . | nindent 10 }}

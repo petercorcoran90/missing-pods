@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: case-file-text
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: case-file
+data:
+  case-file.txt: |
+{{ .Values.theme.briefing | indent 4 }}
+    -------------------------------------------------------------
+    YOUR FIRST LEAD - LEVEL 1: THE FIRST WITNESS
+    -------------------------------------------------------------
+    A witness is in the bullpen. We tagged them with a label so
+    you can pick them out of the crowd.
+
+    Try:
+        kubectl get pods -n {{ .Release.Namespace }} -l role=witness --show-labels
+        kubectl describe pod <that-witness-pod> -n {{ .Release.Namespace }}
+
+    Witnesses talk in annotations. Read carefully.
+    -------------------------------------------------------------
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: case-file
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: case-file
+  annotations:
+    case.level: "0"
+    case.hint: "Run: kubectl logs case-file -n {{ .Release.Namespace }}"
+spec:
+  restartPolicy: Always
+  containers:
+    - name: briefing
+      image: {{ .Values.images.busybox | quote }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          cat /case/case-file.txt
+          echo ""
+          echo "(briefing delivered - this pod will idle so you can re-read it)"
+          # Idle forever so the pod stays Running and logs remain available.
+          exec sleep infinity
+      volumeMounts:
+        - name: case
+          mountPath: /case
+      {{- include "case.resources" . | nindent 6 }}
+  volumes:
+    - name: case
+      configMap:
+        name: case-file-text

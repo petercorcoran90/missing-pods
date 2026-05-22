@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: detective-terminal
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: detective-terminal
+  annotations:
+    case.purpose: "Exec into me to curl in-cluster Services and call Precinct HQ."
+spec:
+  restartPolicy: Always
+  containers:
+    - name: terminal
+      image: {{ .Values.images.netshoot | quote }}
+      command: ["/bin/sh", "-c", "exec sleep infinity"]
+      {{- include "case.resources" . | nindent 6 }}

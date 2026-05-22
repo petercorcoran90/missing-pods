@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bystander-alpha
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: witness
+    case.level: "1"
+  annotations:
+    # The actual clue. Player surfaces this with `kubectl describe pod`.
+    case.clue: |
+      Detective, I saw the whole thing.
+      Passphrase to log this lead at Precinct HQ:  {{ .Values.answers.level1 }}
+
+      Next: a security camera was rolling that night. Find the pod
+      named `surveillance-cam`. It has two containers; only one of
+      them was pointing the right way.
+
+      Try:
+          kubectl logs surveillance-cam -n {{ .Release.Namespace }} -c camera
+
+      Bring me what the camera saw.
+    {{- if .Values.difficulty.hints }}
+    case.hint: "Run `kubectl describe pod` against me and read every annotation. The clue isn't in my logs."
+    {{- end }}
+spec:
+  restartPolicy: Always
+  containers:
+    - name: bystander
+      image: {{ .Values.images.busybox | quote }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Hey detective. I'm a witness, but I only talk on the record."
+          echo "Check my paperwork (annotations), not my mouth (logs)."
+          exec sleep infinity
+      {{- include "case.resources" . | nindent 6 }}

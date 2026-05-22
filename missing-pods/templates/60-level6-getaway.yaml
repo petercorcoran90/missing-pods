@@ -1,0 +1,87 @@
+{{- /*
+ClusterIP Service + an nginx pod that serves the level-6 clue. The player
+exec's into detective-terminal and `curl`s the service by its in-cluster
+DNS name. They can also poke `kubectl get endpoints getaway-svc` and
+`kubectl describe service getaway-svc` for the Service deep-dive.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: getaway-page
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: getaway
+data:
+  index.html: |
+    =============================================================
+      GETAWAY DISPATCH - intercepted radio chatter
+    =============================================================
+    The intruder switched cars in the vault sub-basement. The
+    physical evidence (the manifest of stolen records) is on a
+    volume mounted into the pod called `vault-keeper` at the
+    path /evidence/.
+
+    To read it, exec into the pod and cat the file:
+
+        kubectl exec vault-keeper -n {{ .Release.Namespace }} -- \
+          cat /evidence/manifest.txt
+
+    Passphrase for Precinct HQ:  {{ .Values.answers.level6 }}
+    =============================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: getaway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: getaway
+    case.level: "6"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: getaway
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" . | nindent 8 }}
+        app: getaway
+        role: getaway
+    spec:
+      containers:
+        - name: nginx
+          image: {{ .Values.images.nginx | quote }}
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+          {{- include "case.resources" . | nindent 10 }}
+      volumes:
+        - name: page
+          configMap:
+            name: getaway-page
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: getaway-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: getaway
+  annotations:
+    {{- if .Values.difficulty.hints }}
+    case.hint: "ClusterIP - only reachable from inside the cluster. Use the detective-terminal pod to `curl` it."
+    {{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    app: getaway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

@@ -1,0 +1,50 @@
+{{- /*
+The finale workforce. One Deployment per entry in .Values.workers.
+All four look like ordinary workers in `kubectl get deploy`, but
+`helm get values <release>` and `helm get manifest <release>` reveal
+one whose `team` does not match the others. That is the intruder.
+*/ -}}
+{{- range $w := .Values.workers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $w.name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "case.labels" $ | nindent 4 }}
+    role: worker
+    team: {{ $w.team }}
+    worker: {{ $w.name }}
+  annotations:
+    case.note: {{ $w.note | quote }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $w.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" $ | nindent 8 }}
+        app: {{ $w.name }}
+        role: worker
+        team: {{ $w.team }}
+        worker: {{ $w.name }}
+    spec:
+      containers:
+        - name: worker
+          image: {{ $.Values.images.busybox | quote }}
+          env:
+            - name: WORKER_NAME
+              value: {{ $w.name | quote }}
+            - name: WORKER_TEAM
+              value: {{ $w.team | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "[${WORKER_NAME}] reporting in - team=${WORKER_TEAM}"
+              exec sleep infinity
+          {{- include "case.resources" $ | nindent 10 }}
+{{- end }}

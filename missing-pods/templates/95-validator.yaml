@@ -1,0 +1,291 @@
+{{- if .Values.validator.enabled }}
+{{- /*
+Precinct HQ. A tiny Python stdlib http.server delivered via ConfigMap.
+State is in-memory; a Helm reinstall is a clean reset. Passphrases and
+the culprit name are wired in via env vars so --set works.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: precinct-hq-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: precinct-hq
+data:
+  precinct.py: |
+    #!/usr/bin/env python3
+    """Precinct HQ - validator for The Case of the Missing Pods."""
+    import os
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import urlparse, parse_qs
+
+    PORT = int(os.environ.get("PORT", "8080"))
+
+    ANSWERS = {
+        1: os.environ["ANSWER_L1"],
+        2: os.environ["ANSWER_L2"],
+        3: os.environ["ANSWER_L3"],
+        4: os.environ["ANSWER_L4"],
+        5: os.environ["ANSWER_L5"],
+        6: os.environ["ANSWER_L6"],
+        7: os.environ["ANSWER_L7"],
+    }
+    CULPRIT = os.environ["CULPRIT"].strip().lower()
+    CASE_NAME = os.environ.get("CASE_NAME", "The Case of the Missing Pods")
+    DETECTIVE = os.environ.get("DETECTIVE", "Detective")
+    VICTORY_BANNER = os.environ.get(
+        "VICTORY_BANNER",
+        "+----------------------------------------------------------+\n|   CASE CLOSED. The cluster is yours, Detective.          |\n+----------------------------------------------------------+",
+    )
+
+    HINTS = {
+        1: [
+            "Witnesses don't talk in pod logs - they talk on paperwork.",
+            "Use a label selector to find them: -l role=witness.",
+            "kubectl describe pod <witness>, then read every annotation.",
+        ],
+        2: [
+            "The pod has more than one container. Only one was useful.",
+            "Pass -c <containerName> to kubectl logs.",
+            "kubectl logs surveillance-cam -c camera --tail=20.",
+        ],
+        3: [
+            "The filing cabinet is a ConfigMap. Most files are dead ends.",
+            "kubectl get configmap filing-cabinet -o yaml.",
+            "One file's name ends in -B. Read its full text.",
+        ],
+        4: [
+            "Secrets store data base64-encoded.",
+            "Use -o jsonpath to grab the 'note' key from the secret.",
+            "kubectl get secret evidence-locker -o jsonpath='{.data.note}' | base64 --decode",
+        ],
+        5: [
+            "Look at the Deployment list. One of them has 0 replicas.",
+            "rollout history tells you who silenced it. Scale it back to 1.",
+            "kubectl scale deployment/informant --replicas=1, then read the pod logs.",
+        ],
+        6: [
+            "ClusterIP services only answer from inside the cluster.",
+            "There is a detective-terminal pod for exactly this.",
+            "kubectl exec -it detective-terminal -- curl http://getaway-svc.<ns>.svc.cluster.local",
+        ],
+        7: [
+            "A volume is mounted into the vault-keeper pod at /evidence.",
+            "Exec into the pod and ls /evidence, then cat the file.",
+            "kubectl exec vault-keeper -- cat /evidence/manifest.txt",
+        ],
+    }
+
+    START_TIME = time.time()
+    SOLVED = set()
+    CLOSED_AT = None
+    TOTAL = 8  # 7 evidence levels + the accusation = 8 pieces
+
+
+    def progress_bar():
+        bars = len(SOLVED) + (1 if CLOSED_AT else 0)
+        filled = "#" * bars
+        empty = "." * (TOTAL - bars)
+        return "[" + filled + empty + "] " + str(bars) + "/" + str(TOTAL)
+
+
+    def status_text():
+        elapsed = int((CLOSED_AT or time.time()) - START_TIME)
+        mm, ss = divmod(elapsed, 60)
+        line = "=" * 60
+        return "\n".join([
+            line,
+            "  " + CASE_NAME.upper() + "  -  precinct hq",
+            line,
+            "  Detective on the case:   " + DETECTIVE,
+            "  Evidence:                " + progress_bar(),
+            "  Time on the case:        " + ("%02d:%02d" % (mm, ss)),
+            "  Status:                  " + ("CASE CLOSED" if CLOSED_AT else "OPEN"),
+            line,
+            "  Endpoints:",
+            "    GET /submit?clue=<passphrase>",
+            "    GET /hint?level=<1..7>",
+            "    GET /accuse?name=<culprit>",
+            line,
+            "",
+        ])
+
+
+    def submit(clue):
+        if not clue:
+            return 400, "missing ?clue=<passphrase>\n"
+        clue_norm = clue.strip().upper()
+        for lvl, expected in ANSWERS.items():
+            if clue_norm == expected.strip().upper():
+                if lvl in SOLVED:
+                    return 200, (
+                        "already logged: evidence " + str(lvl) + " of "
+                        + str(TOTAL) + " was on file.\n" + status_text()
+                    )
+                SOLVED.add(lvl)
+                return 200, (
+                    "+ EVIDENCE " + str(lvl) + " of " + str(TOTAL)
+                    + " logged. Good work, " + DETECTIVE + ".\n"
+                    + status_text()
+                )
+        return 200, "that lead's a dead end. try another angle.\n"
+
+
+    def hint(level):
+        try:
+            n = int(level)
+        except (TypeError, ValueError):
+            return 400, "use /hint?level=1..7\n"
+        if n not in HINTS:
+            return 404, "no hints for level " + str(n) + ".\n"
+        lines = ["--- hints for level " + str(n) + " ---"]
+        for i, h in enumerate(HINTS[n], start=1):
+            lines.append("  (" + str(i) + ") " + h)
+        lines.append("---")
+        return 200, "\n".join(lines) + "\n"
+
+
+    def accuse(name):
+        global CLOSED_AT
+        if not name:
+            return 400, "missing ?name=<culprit>\n"
+        if name.strip().lower() != CULPRIT:
+            return 200, "'" + name + "' is not your suspect. keep digging.\n"
+        if CLOSED_AT is None:
+            CLOSED_AT = time.time()
+        elapsed = int(CLOSED_AT - START_TIME)
+        mm, ss = divmod(elapsed, 60)
+        return 200, (
+            "\n" + VICTORY_BANNER + "\n"
+            + "  Culprit:      " + name + "\n"
+            + "  Detective:    " + DETECTIVE + "\n"
+            + "  Time on case: " + ("%02d:%02d" % (mm, ss)) + "\n"
+            + "  Evidence:     " + progress_bar() + "\n"
+            + "\n"
+            + "  Type `helm uninstall <release>` to clear the scene.\n"
+        )
+
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            return  # quiet
+
+        def _reply(self, status, body):
+            data = body.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            u = urlparse(self.path)
+            q = parse_qs(u.query)
+            path = u.path.rstrip("/") or "/"
+            if path == "/" or path == "/status":
+                self._reply(200, status_text())
+            elif path == "/submit":
+                code, body = submit((q.get("clue") or [""])[0])
+                self._reply(code, body)
+            elif path == "/hint":
+                code, body = hint((q.get("level") or [""])[0])
+                self._reply(code, body)
+            elif path == "/accuse":
+                code, body = accuse((q.get("name") or [""])[0])
+                self._reply(code, body)
+            elif path == "/healthz":
+                self._reply(200, "ok\n")
+            else:
+                self._reply(404, "unknown endpoint. try /\n")
+
+
+    if __name__ == "__main__":
+        print("precinct hq listening on :" + str(PORT), flush=True)
+        ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.validator.serviceName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: precinct-hq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.validator.serviceName }}
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" . | nindent 8 }}
+        app: {{ .Values.validator.serviceName }}
+        role: precinct-hq
+    spec:
+      containers:
+        - name: precinct
+          image: {{ .Values.validator.image | quote }}
+          command: ["python3", "/app/precinct.py"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.validator.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.validator.port | quote }}
+            - name: ANSWER_L1
+              value: {{ .Values.answers.level1 | quote }}
+            - name: ANSWER_L2
+              value: {{ .Values.answers.level2 | quote }}
+            - name: ANSWER_L3
+              value: {{ .Values.answers.level3 | quote }}
+            - name: ANSWER_L4
+              value: {{ .Values.answers.level4 | quote }}
+            - name: ANSWER_L5
+              value: {{ .Values.answers.level5 | quote }}
+            - name: ANSWER_L6
+              value: {{ .Values.answers.level6 | quote }}
+            - name: ANSWER_L7
+              value: {{ .Values.answers.level7 | quote }}
+            - name: CULPRIT
+              value: {{ .Values.answers.culprit | quote }}
+            - name: CASE_NAME
+              value: {{ .Values.theme.caseName | quote }}
+            - name: DETECTIVE
+              value: {{ .Values.theme.detectiveName | quote }}
+            - name: VICTORY_BANNER
+              value: {{ .Values.theme.victoryBanner | quote }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          {{- include "case.resources" . | nindent 10 }}
+      volumes:
+        - name: script
+          configMap:
+            name: precinct-hq-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.validator.serviceName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: precinct-hq
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.validator.serviceName }}
+  ports:
+    - name: http
+      port: {{ .Values.validator.port }}
+      targetPort: http
+{{- end }}

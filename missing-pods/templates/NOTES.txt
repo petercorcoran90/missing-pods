@@ -1,0 +1,39 @@
+{{ .Values.theme.briefing }}
+
+===============================================================
+  {{ .Values.theme.caseName | upper }} - briefing delivered.
+===============================================================
+
+The case file is waiting on a pod called `case-file` in the
+namespace `{{ .Release.Namespace }}`.
+
+Your very first command, {{ .Values.theme.detectiveName }}:
+
+    kubectl get pods -n {{ .Release.Namespace }}
+
+Then read the case file:
+
+    kubectl logs case-file -n {{ .Release.Namespace }}
+
+The case file will tell you exactly what to do next. Trust the
+resources, not their names.
+
+{{ if .Values.validator.enabled -}}
+Need progress, a hint, or want to close the case?
+The Precinct HQ desk runs inside the cluster. Hop into the
+detective terminal and ask it:
+
+    kubectl exec -it detective-terminal -n {{ .Release.Namespace }} -- \
+      curl -s http://{{ include "case.validatorHost" . }}:{{ .Values.validator.port }}/
+
+Endpoints:
+    /                          case status + progress bar
+    /submit?clue=<passphrase>  hand in a level's passphrase
+    /hint?level=<n>            ask the desk for a hint (1..7)
+    /accuse?name=<culprit>     close the case
+{{- else -}}
+The Precinct HQ validator is disabled; the discovery chain alone
+solves the case. The last clue names the culprit.
+{{- end }}
+
+Good hunting.

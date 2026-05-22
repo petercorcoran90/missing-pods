@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: surveillance-cam
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: surveillance
+    case.level: "2"
+  annotations:
+    {{- if .Values.difficulty.hints }}
+    case.hint: "Two containers. Only one was pointing the right way. `kubectl logs <pod> -c camera`."
+    {{- end }}
+spec:
+  restartPolicy: Always
+  containers:
+    # Noise container - emits garbage, NOT the clue. This is deliberate
+    # so the player learns to scope logs to a specific container.
+    - name: noise
+      image: {{ .Values.images.busybox | quote }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          i=0
+          while true; do
+            i=$((i+1))
+            echo "[static] $(date -u +%H:%M:%S) frame ${i}: ......zzzzz......"
+            sleep 1
+          done
+      {{- include "case.resources" . | nindent 6 }}
+    # The camera container holds the clue. Emits it on a steady loop so
+    # `--tail` always catches it.
+    - name: camera
+      image: {{ .Values.images.busybox | quote }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          # Print the clue immediately so even `kubectl logs --tail=1` works.
+          while true; do
+            echo "=============================================="
+            echo "  CAMERA-3 night feed - lobby cam"
+            echo "=============================================="
+            echo "I saw the intruder slip into the filing room."
+            echo "They were carrying a folder marked FILE-B."
+            echo ""
+            echo "Passphrase for Precinct HQ:  {{ .Values.answers.level2 }}"
+            echo ""
+            echo "Next lead: the records ConfigMap is called"
+            echo "  filing-cabinet"
+            echo "Open it with:"
+            echo "  kubectl get configmap filing-cabinet -n {{ .Release.Namespace }} -o yaml"
+            echo "Most files are dead ends. One isn't."
+            echo "=============================================="
+            sleep 10
+          done
+      {{- include "case.resources" . | nindent 6 }}

@@ -1,0 +1,62 @@
+{{- if .Values.rbac.enabled }}
+{{- /*
+Optional scaffolding: a ServiceAccount + Role + RoleBinding scoped to
+this namespace. The game does not depend on it; it exists so an
+instructor can hand players a limited kubeconfig (see FACILITATOR.md).
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.rbac.serviceAccountName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.rbac.serviceAccountName }}-reader
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+rules:
+  # Read everything the game needs to be read.
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - configmaps
+      - secrets
+      - services
+      - endpoints
+      - persistentvolumeclaims
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+    verbs: ["get", "list", "watch"]
+  # Required by `kubectl exec` and by the scale step.
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.rbac.serviceAccountName }}-reader
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.rbac.serviceAccountName }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Values.rbac.serviceAccountName }}-reader
+{{- end }}

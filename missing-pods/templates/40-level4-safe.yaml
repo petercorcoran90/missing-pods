@@ -1,0 +1,23 @@
+{{- /*
+The "Safe". A Secret whose `note` value is the base64-encoded next lead.
+Helm's `b64enc` does that for us so an instructor can --set fresh
+passphrases without re-encoding by hand. The clue's plain text mentions
+the level-4 passphrase and points the player at Level 5.
+*/ -}}
+{{- $secretBody := printf "-------------------------------------------------------------\nEVIDENCE FOUND - level 4 of 8\n-------------------------------------------------------------\nNice work cracking the safe.\n\nPassphrase for Precinct HQ:  %s\n\nNext lead: there is a Deployment called `informant` that the\nintruder scaled down to 0 to keep its mouth shut. Check its\nrollout history first (it'll tell you who did it), then bring it\nback up so it can talk.\n\nTry:\n    kubectl rollout history deployment/informant -n %s\n    kubectl scale deployment/informant -n %s --replicas=1\n    kubectl logs -l role=informant -n %s --tail=200\n-------------------------------------------------------------\n" .Values.answers.level4 .Release.Namespace .Release.Namespace .Release.Namespace -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: evidence-locker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: evidence-locker
+    case.level: "4"
+  annotations:
+    {{- if .Values.difficulty.hints }}
+    case.hint: "Secrets store values base64-encoded. `-o jsonpath='{.data.note}' | base64 --decode`."
+    {{- end }}
+type: Opaque
+data:
+  note: {{ $secretBody | b64enc | quote }}

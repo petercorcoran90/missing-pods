@@ -1,0 +1,73 @@
+{{- if .Values.difficulty.decoys }}
+{{- /*
+Decoys exist to make `kubectl get all -o yaml` not be a shortcut, but
+they all self-identify as dead ends so nobody rat-holes for 10 minutes.
+*/ -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: civilian-jones
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: civilian
+  annotations:
+    case.note: "Dead end, detective. I just work here."
+spec:
+  restartPolicy: Always
+  containers:
+    - name: civilian
+      image: {{ .Values.images.busybox | quote }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "nothing to see here. carry on."
+          exec sleep infinity
+      {{- include "case.resources" . | nindent 6 }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: civilian-smith
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: civilian
+  annotations:
+    case.note: "Dead end. Try the witnesses."
+spec:
+  restartPolicy: Always
+  containers:
+    - name: civilian
+      image: {{ .Values.images.busybox | quote }}
+      command: ["/bin/sh", "-c", "exec sleep infinity"]
+      {{- include "case.resources" . | nindent 6 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: laundry-list
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: decoy
+data:
+  notes.txt: |
+    DEAD END.
+    Just somebody's laundry list. Nothing here, detective.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lunch-money
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: decoy
+  annotations:
+    case.note: "Decoy. Real evidence is in `evidence-locker`."
+type: Opaque
+stringData:
+  note: "DEAD END. Sandwich receipts. Move along."
+{{- end }}

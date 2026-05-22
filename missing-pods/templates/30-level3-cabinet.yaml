@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filing-cabinet
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "case.labels" . | nindent 4 }}
+    role: filing-cabinet
+    case.level: "3"
+  annotations:
+    {{- if .Values.difficulty.hints }}
+    case.hint: "The camera said FILE-B. Read every key in the cabinet; ignore the dead ends."
+    {{- end }}
+data:
+  file-A.txt: |
+    DEAD END.
+    Old shift schedules. Nothing here, detective.
+  file-B.txt: |
+    -------------------------------------------------------------
+    EVIDENCE FOUND - level 3 of 8
+    -------------------------------------------------------------
+    Whoever lifted the records sealed the next lead inside the
+    evidence locker (a Secret named `evidence-locker`). Its `note`
+    key is base64-encoded - decode it.
+
+    Try:
+        kubectl get secret evidence-locker -n {{ .Release.Namespace }} \
+          -o jsonpath='{.data.note}' | base64 --decode ; echo
+
+    Passphrase for Precinct HQ:  {{ .Values.answers.level3 }}
+    -------------------------------------------------------------
+  file-C.txt: |
+    DEAD END.
+    Lunch orders from last Thursday. Nothing here, detective.
+  file-D.txt: |
+    DEAD END.
+    Vending machine inventory. Move along.
