@@ -1,5 +1,13 @@
-apiVersion: v1
-kind: Pod
+{{- /*
+The first witness. Ships as a Deployment scaled to 0 - the player brings
+them in for questioning (scale to 1), reads their statement off the
+record (the case.clue annotation on the pod, via `kubectl describe pod`),
+then lets them go (scale back to 0). The hint on the Deployment's own
+metadata stays readable via `kubectl describe deployment` even while
+sealed, so a stuck player can learn how to bring the scene up.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: bystander-alpha
   namespace: {{ .Release.Namespace }}
@@ -8,29 +16,42 @@ metadata:
     role: witness
     case.level: "1"
   annotations:
-    # The actual clue. Player surfaces this with `kubectl describe pod`.
-    case.clue: |
-      Detective, I saw the whole thing.
-      Passphrase: {{ .Values.answers.level1 }}
-
-      Next lead: a security camera was rolling that night. The pod
-      is called `surveillance-cam`. It runs more than one container -
-      only one of them was pointing the right way.
-
-      Bring me what the camera saw.
     {{- if .Values.difficulty.hints }}
-    case.hint: "Run `kubectl describe pod` against me and read every annotation. The clue isn't in my logs."
+    case.hint: "Nobody's home - I'm a Deployment scaled to 0. Bring me in: `kubectl scale deployment/bystander-alpha --replicas=1`. Then read my statement: `kubectl describe pod -l role=witness` (the clue's in the annotations, not the logs). Let me go after with --replicas=0."
     {{- end }}
 spec:
-  restartPolicy: Always
-  containers:
-    - name: bystander
-      image: {{ .Values.images.busybox | quote }}
-      command:
-        - /bin/sh
-        - -c
-        - |
-          echo "Hey detective. I'm a witness, but I only talk on the record."
-          echo "Check my paperwork (annotations), not my mouth (logs)."
-          exec sleep infinity
-      {{- include "case.resources" . | nindent 6 }}
+  replicas: 0
+  selector:
+    matchLabels:
+      app: bystander-alpha
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" . | nindent 8 }}
+        app: bystander-alpha
+        role: witness
+      annotations:
+        # The actual clue. Player surfaces this with `kubectl describe pod`
+        # once the witness has been brought in (scaled up).
+        case.clue: |
+          Detective, I saw the whole thing.
+          Passphrase: {{ .Values.answers.level1 }}
+
+          Next lead: a security camera was rolling that night. The
+          footage lives in a Deployment called `surveillance-cam`,
+          powered down to save tape. Bring it online and it runs more
+          than one container - only one was pointing the right way.
+
+          Seal this scene behind you first, then go bring the camera up.
+    spec:
+      containers:
+        - name: bystander
+          image: {{ .Values.images.busybox | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Hey detective. I'm a witness, but I only talk on the record."
+              echo "Check my paperwork (annotations), not my mouth (logs)."
+              exec sleep infinity
+          {{- include "case.resources" . | nindent 10 }}

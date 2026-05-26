@@ -34,11 +34,33 @@ data:
     for a hint. That's what it's there for.
 
     -------------------------------------------------------------
+    HOW THE PRECINCT RUNS ITS SCENES
+    -------------------------------------------------------------
+    Budget's tight and the cluster's small, so we keep every
+    crime scene SEALED until you're working it. Each scene is a
+    Deployment parked at zero replicas - nothing running, nothing
+    burning resources. When you reach a scene, bring it online
+    (scale it to one replica), take what it gives you, then seal
+    it again before you move on (scale it back to zero). Leave
+    scenes running and the cluster gets heavy fast - testers on
+    small machines will thank you.
+
+    Three things stay on the whole case and you never touch them:
+    this case file, the `detective-terminal` pod, and the Precinct
+    HQ desk. Everything else, you open and close yourself.
+
+    Not sure how to bring a scene up or down? The desk will walk
+    you through it: /hint?level=<n>.
+
+    -------------------------------------------------------------
     YOUR FIRST LEAD - LEVEL 1: THE FIRST WITNESS
     -------------------------------------------------------------
-    A witness is in the bullpen. We tagged them with `role=witness`
-    so you can pick them out of the crowd. Witnesses only talk
-    on the record - check their paperwork, not their mouth.
+    We've got a witness, but they're not in the building - we
+    sent them home to keep the lights low. They're a Deployment
+    tagged `role=witness`. Bring them in for questioning (one
+    replica), then take their statement: witnesses only talk on
+    the record, so check their paperwork (annotations), not their
+    mouth (logs). Let them go again when you're done.
     -------------------------------------------------------------
 ---
 apiVersion: v1

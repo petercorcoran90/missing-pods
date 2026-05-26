@@ -1,11 +1,14 @@
 {{- /*
 An emptyDir volume populated by an initContainer that writes
 /evidence/manifest.txt. Teaches volumes, volumeMounts, mountPath, and
-exec'ing into a pod to read a file from its filesystem. (PVCs work
+exec'ing into a pod to read a file from its filesystem. Ships as a
+Deployment scaled to 0; the player brings it online, execs in to read
+the manifest, then seals it again. The initContainer re-seeds the
+emptyDir on every scale-up, so the evidence is always fresh. (PVCs work
 identically; we use emptyDir so the chart has no StorageClass
 dependency and resets cleanly on reinstall.)
 */ -}}
-{{- $manifest := printf "=============================================================\n  EVIDENCE MANIFEST - vault sub-basement\n=============================================================\nFinal physical evidence recovered. Inventory:\n  - 1x customer-records.csv      (sealed)\n  - 1x ledger-bypass.script      (signed: see below)\n  - 1x burner phone              (factory reset)\n\nForensics on the bypass script points one way: the script was\nbuilt and shipped to the cluster by a HELM RELEASE.\n\nPassphrase: %s\n\nFinal move, detective: audit the workloads this release\ndeployed. One of them does not match the rest. That's your\nculprit. Hand their name to the desk - the desk knows what\nto do with /accuse.\n=============================================================\n" .Values.answers.level7 -}}
+{{- $manifest := printf "=============================================================\n  EVIDENCE MANIFEST - vault sub-basement\n=============================================================\nFinal physical evidence recovered. Inventory:\n  - 1x customer-records.csv      (sealed)\n  - 1x ledger-bypass.script      (signed: see below)\n  - 1x burner phone              (factory reset)\n\nForensics on the bypass script points one way: the script was\nbuilt and shipped to the cluster by a HELM RELEASE.\n\nPassphrase: %s\n\nFinal move, detective: audit the workloads this release\ndeployed. They're lined up powered-down - you don't need to\nstart any of them. The release's own records name every one\nand the team they're on, and exactly one does not match the\nrest. That's your culprit. Hand their name to the desk - it\nknows what to do with /accuse.\n\nSeal the vault behind you on the way out.\n=============================================================\n" .Values.answers.level7 -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,8 +21,8 @@ data:
   manifest.txt: |
 {{ $manifest | indent 4 }}
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: vault-keeper
   namespace: {{ .Release.Namespace }}
@@ -29,39 +32,49 @@ metadata:
     case.level: "7"
   annotations:
     {{- if .Values.difficulty.hints }}
-    case.hint: "`kubectl exec vault-keeper -- cat /evidence/manifest.txt`. The mount path is /evidence."
+    case.hint: "Powered down (Deployment at 0). Bring it up: `kubectl scale deployment/vault-keeper --replicas=1`, then `kubectl exec deploy/vault-keeper -- cat /evidence/manifest.txt`. The mount path is /evidence. Seal it after with --replicas=0."
     {{- end }}
 spec:
-  restartPolicy: Always
-  initContainers:
-    - name: seed-evidence
-      image: {{ .Values.images.busybox | quote }}
-      command:
-        - /bin/sh
-        - -c
-        - |
-          # Copy the manifest from the configMap volume into the persistent
-          # emptyDir mount. The player will see the file at /evidence.
-          cp /seed/manifest.txt /evidence/manifest.txt
-          chmod 0444 /evidence/manifest.txt
-      volumeMounts:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: vault-keeper
+  template:
+    metadata:
+      labels:
+        {{- include "case.labels" . | nindent 8 }}
+        app: vault-keeper
+        role: vault
+    spec:
+      initContainers:
+        - name: seed-evidence
+          image: {{ .Values.images.busybox | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Copy the manifest from the configMap volume into the
+              # emptyDir mount. The player will see the file at /evidence.
+              cp /seed/manifest.txt /evidence/manifest.txt
+              chmod 0444 /evidence/manifest.txt
+          volumeMounts:
+            - name: seed
+              mountPath: /seed
+            - name: evidence
+              mountPath: /evidence
+          {{- include "case.resources" . | nindent 10 }}
+      containers:
+        - name: keeper
+          image: {{ .Values.images.busybox | quote }}
+          command: ["/bin/sh", "-c", "exec sleep infinity"]
+          volumeMounts:
+            - name: evidence
+              mountPath: /evidence
+              readOnly: true
+          {{- include "case.resources" . | nindent 10 }}
+      volumes:
         - name: seed
-          mountPath: /seed
+          configMap:
+            name: vault-manifest
         - name: evidence
-          mountPath: /evidence
-      {{- include "case.resources" . | nindent 6 }}
-  containers:
-    - name: keeper
-      image: {{ .Values.images.busybox | quote }}
-      command: ["/bin/sh", "-c", "exec sleep infinity"]
-      volumeMounts:
-        - name: evidence
-          mountPath: /evidence
-          readOnly: true
-      {{- include "case.resources" . | nindent 6 }}
-  volumes:
-    - name: seed
-      configMap:
-        name: vault-manifest
-    - name: evidence
-      emptyDir: {}
+          emptyDir: {}

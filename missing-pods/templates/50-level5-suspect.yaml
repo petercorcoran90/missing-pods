@@ -16,7 +16,7 @@ metadata:
   annotations:
     kubernetes.io/change-cause: "Scaled to 0 by an internal actor at 03:14 - investigate"
     {{- if .Values.difficulty.hints }}
-    case.hint: "`kubectl rollout history deployment/informant` then `kubectl scale deployment/informant --replicas=1`."
+    case.hint: "`kubectl rollout history deployment/informant` names who silenced me. Then `kubectl scale deployment/informant --replicas=1` and read `kubectl logs deploy/informant`. Seal me again with --replicas=0."
     {{- end }}
 spec:
   replicas: 0
@@ -44,11 +44,16 @@ spec:
               Took 'em long enough to scale me back up.
 
               Listen. The getaway used an internal ClusterIP Service
-              called `getaway-svc` in this same namespace. ClusterIPs
-              don't answer from outside the cluster - you'll need a
-              pod that's already inside. Lucky for you, there is one.
+              called `getaway-svc` in this same namespace - but the
+              Deployment behind it, `getaway`, is powered down, so the
+              service has nothing to answer with. Bring `getaway`
+              online first. Then curl the service from inside the
+              cluster (ClusterIPs don't answer from outside - that's
+              what the detective-terminal pod is for).
 
               Whatever the service hands you, the next lead's in there.
+              Send me back to 0 and power the getaway down when you're
+              through with it.
 
               Passphrase: {{ .Values.answers.level5 }}
               =============================================================

@@ -42,39 +42,39 @@ data:
 
     HINTS = {
         1: [
-            "Witnesses don't talk in pod logs - they talk on paperwork.",
-            "Use a label selector to find them: -l role=witness.",
-            "kubectl describe pod <witness>, then read every annotation.",
+            "The witness is a Deployment scaled to 0 - nobody's home. Bring them in first (scale to 1).",
+            "Witnesses talk on paperwork, not logs. Find them with -l role=witness.",
+            "kubectl scale deployment/bystander-alpha --replicas=1, then kubectl describe pod -l role=witness and read the annotations. Seal with --replicas=0 after.",
         ],
         2: [
-            "The pod has more than one container. Only one was useful.",
-            "Pass -c <containerName> to kubectl logs.",
-            "kubectl logs surveillance-cam -c camera --tail=20.",
+            "surveillance-cam is a Deployment scaled to 0. Bring it online before you can read anything.",
+            "It has more than one container - only one was useful. Scope logs with -c.",
+            "kubectl scale deployment/surveillance-cam --replicas=1, then kubectl logs deploy/surveillance-cam -c camera --tail=20. --replicas=0 to seal it.",
         ],
         3: [
-            "The filing cabinet is a ConfigMap. Most files are dead ends.",
+            "The filing cabinet is a ConfigMap - it doesn't run, so there's nothing to scale. Just read it.",
             "kubectl get configmap filing-cabinet -o yaml.",
             "One file's name ends in -B. Read its full text.",
         ],
         4: [
-            "Secrets store data base64-encoded.",
-            "Use -o jsonpath to grab the 'note' key from the secret.",
+            "The evidence locker is a Secret - nothing to scale, just read it.",
+            "Secrets store data base64-encoded. Grab the 'note' key with -o jsonpath.",
             "kubectl get secret evidence-locker -o jsonpath='{.data.note}' | base64 --decode",
         ],
         5: [
-            "Look at the Deployment list. One of them has 0 replicas.",
-            "rollout history tells you who silenced it. Scale it back to 1.",
-            "kubectl scale deployment/informant --replicas=1, then read the pod logs.",
+            "One Deployment sits at 0 replicas - the informant. rollout history names who silenced it.",
+            "Bring it back: kubectl scale deployment/informant --replicas=1.",
+            "kubectl logs deploy/informant for the clue. Seal it again with --replicas=0.",
         ],
         6: [
-            "ClusterIP services only answer from inside the cluster.",
-            "There is a detective-terminal pod for exactly this.",
-            "kubectl exec -it detective-terminal -- curl http://getaway-svc.<ns>.svc.cluster.local",
+            "getaway-svc is a ClusterIP, and the getaway Deployment behind it is scaled to 0 - so it has no endpoints.",
+            "kubectl scale deployment/getaway --replicas=1, wait for the pod to be Ready, then curl from the detective-terminal pod.",
+            "kubectl exec -it detective-terminal -- curl http://getaway-svc.<ns>.svc.cluster.local . Seal getaway with --replicas=0 after.",
         ],
         7: [
-            "A volume is mounted into the vault-keeper pod at /evidence.",
-            "Exec into the pod and ls /evidence, then cat the file.",
-            "kubectl exec vault-keeper -- cat /evidence/manifest.txt",
+            "vault-keeper is a Deployment scaled to 0. Bring it online to mount the evidence.",
+            "kubectl scale deployment/vault-keeper --replicas=1, then exec in and look in /evidence.",
+            "kubectl exec deploy/vault-keeper -- cat /evidence/manifest.txt . Seal it with --replicas=0 after.",
         ],
     }
 

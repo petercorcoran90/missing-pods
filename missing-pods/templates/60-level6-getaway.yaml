@@ -19,8 +19,11 @@ data:
     =============================================================
     The intruder switched cars in the vault sub-basement. The
     physical evidence (a manifest of the stolen records) sits
-    on a volume mounted into the pod called `vault-keeper`
-    at the path /evidence/.
+    on a volume mounted into a Deployment called `vault-keeper`
+    at the path /evidence/ - and it's powered down. Bring it
+    online, exec in, and read the manifest.
+
+    Power down this getaway and seal it behind you on the way.
 
     Passphrase: {{ .Values.answers.level6 }}
     =============================================================
@@ -34,8 +37,12 @@ metadata:
     {{- include "case.labels" . | nindent 4 }}
     role: getaway
     case.level: "6"
+  annotations:
+    {{- if .Values.difficulty.hints }}
+    case.hint: "I'm scaled to 0, so getaway-svc has no endpoints to answer with. `kubectl scale deployment/getaway --replicas=1`, wait for the pod to be Ready, then curl the service from detective-terminal. Seal me after with --replicas=0."
+    {{- end }}
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: getaway
@@ -70,7 +77,7 @@ metadata:
     role: getaway
   annotations:
     {{- if .Values.difficulty.hints }}
-    case.hint: "ClusterIP - only reachable from inside the cluster. Use the detective-terminal pod to `curl` it."
+    case.hint: "ClusterIP - only answers from inside the cluster, and only while the `getaway` Deployment behind it has a Ready pod. `kubectl get endpoints getaway-svc` is empty until you scale getaway up. Then curl it from the detective-terminal pod."
     {{- end }}
 spec:
   type: ClusterIP

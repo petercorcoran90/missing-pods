@@ -18,6 +18,12 @@ Then read the case file:
 The case file will tell you exactly what to do next. Trust the
 resources, not their names.
 
+To keep this light on small clusters, every crime scene ships
+SEALED - a Deployment at 0 replicas. Bring a scene online only
+while you're working it (scale to 1), then seal it again when
+you leave (scale to 0). The case file, the detective terminal,
+and Precinct HQ are the only things that stay up the whole time.
+
 {{ if .Values.validator.enabled -}}
 Need progress, a hint, or want to close the case?
 The Precinct HQ desk runs inside the cluster. Hop into the

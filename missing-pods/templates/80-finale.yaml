@@ -1,8 +1,12 @@
 {{- /*
 The finale workforce. One Deployment per entry in .Values.workers.
-All four look like ordinary workers in `kubectl get deploy`, but
-`helm get values <release>` and `helm get manifest <release>` reveal
-one whose `team` does not match the others. That is the intruder.
+All ship sealed at 0 replicas - they cost nothing to run and you
+never have to start them. The tell is in the labels/manifest, not in
+a running pod: `kubectl get deploy -l role=worker --show-labels`,
+`helm get values <release>` and `helm get manifest <release>` all
+reveal one whose `team` does not match the others. That is the
+intruder. (A player can scale the crew up for a theatrical line-up,
+but it is not required to crack the case.)
 */ -}}
 {{- range $w := .Values.workers }}
 ---
@@ -19,7 +23,7 @@ metadata:
   annotations:
     case.note: {{ $w.note | quote }}
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: {{ $w.name }}
